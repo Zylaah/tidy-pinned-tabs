@@ -74,7 +74,7 @@
       }
       _lastRequestAt = Date.now();
 
-      const userContent = `The page URL is: ${url}\nThe browser tab title is: ${title}\n\nRespond with only a single JSON object matching the schema (keys: filtered, rewritten). No markdown outside the JSON.`;
+      const userContent = `Tab title (this text sets the output language — match it exactly, do not translate to another language):\n${title}\n\nPage URL (for context only; may not match the title language; ignore for language choice):\n${url}\n\nOutput: one JSON object with keys filtered and rewritten only. Same language as the tab title line above.`;
 
       const model = getPref(MODEL_PREF, "mistral-small-latest");
 
@@ -91,7 +91,7 @@
               { role: "system", content: PINNED_TAB_SYSTEM_PROMPT },
               { role: "user", content: userContent },
             ],
-            temperature: 0.2,
+            temperature: 0.1,
             max_tokens: 256,
           }),
           signal,

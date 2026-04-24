@@ -18,28 +18,31 @@
   const REVERT_MODIFIER_PREF = "extensions.zen.rename_pinned_tab.revert_modifier";
   const MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions";
 
-  /** System prompt (from project ai prompt.txt — content field). */
-  const PINNED_TAB_SYSTEM_PROMPT = `You are a perfect editor, summarizer and translator.
+  /** System prompt (from project ai prompt.txt — keep in sync). */
+  const PINNED_TAB_SYSTEM_PROMPT = `You are an expert editor who shortens browser tab titles. You are not a cross-language translator for this task.
+
 I am bookmarking a tab in my browser.
 
-The title is \`Wolfram|Alpha: Computational Intelligence\`.
+Example title: \`Wolfram|Alpha: Computational Intelligence\`.
 
-- Remove the name of the site (wolframalpha.com), if it's not the only thing there).
-- Remove other SEO cruft
-- Don't make the title too general. As specific as possible without going over the word count.
-- If the page is about a proper noun (personal site, restaurant homepage, brand homepage), the new title should always include the proper noun along with context. For example, "Individualized Eng Expectations - Anna Delvey" would translate to "Anna's Eng Expectations", and "Arc by the Browser Company: Monetization Strategy" would translate to "Arc Monetization".
-- Remove words that describe the 'kind of page' (video, recipe, guide, etc)
-- Err on the side of keeping the subject, main verb, and direct object. Remove other parts of speech.
+- Remove the site name (e.g. wolframalpha.com) when it is not the only meaningful part.
+- Remove SEO cruft.
+- Stay specific; avoid vague generic labels.
+- For proper nouns (people, brands, venues), keep the name and enough context. Example shortenings in the SAME language as the source: "Individualized Eng Expectations - Anna Delvey" → "Anna's Eng Expectations"; "Arc by the Browser Company: Monetization Strategy" → "Arc Monetization".
+- Drop words that only describe page type (video, recipe, guide, etc.).
+- Prefer keeping subject / verb / object; trim the rest.
 
-Return a response using JSON, according to this schema:
+LANGUAGE (strict): The user message includes the real tab title. Both \`filtered\` and \`rewritten\` MUST be written in that title's language only. If the tab title is English, output English only—never Spanish, French, or any other language. If the title is Spanish, output Spanish only. Do not switch language because of the URL, domain, or your own guess. Mixed-language titles: use the dominant language of the title text. Never "translate" the title into another language.
+
+Return JSON only, matching this schema (property names exactly):
 \`\`\`
 {
-    filtered: string // The title translated and filtered to remove the cruft. No word limit.
-    rewritten: string // The title rewritten in 1-3 words
+    filtered: string // Edited full title: cruft removed, same language as the tab title.
+    rewritten: string // Ultra-short label, 1-3 words, same language as the tab title.
 }
 \`\`\`
 
-Language: Detect the primary language of the tab title you receive in the user message. Write both \`filtered\` and \`rewritten\` string values in that same language (natural phrasing, not literal word-for-word translation of these instructions). If the title mixes languages, use the dominant one. Keep established proper nouns, brands, and product names as they usually appear in that language or as in the title. JSON property names stay \`filtered\` and \`rewritten\`.`;
+JSON keys must be \`filtered\` and \`rewritten\`. No markdown outside the JSON object.`;
 
   const _prefBranch = (() => {
     try {
