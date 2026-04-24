@@ -26,12 +26,12 @@
   <tr>
     <td width="50%">
       <h3>Pin, rename, keep browsing</h3>
-      <video src="https://raw.githubusercontent.com/YOUR_USERNAME/rename-pinned-tab/main/docs/videos/showcase-1.mp4"
+      <video src="https://github.com/user-attachments/assets/5bfd44e3-620a-4f6c-90da-fbc543702dd1" 
         autoplay loop muted playsinline width="100%"></video>
     </td>
     <td width="50%">
       <h3>Undo without drama</h3>
-      <video src="https://raw.githubusercontent.com/YOUR_USERNAME/rename-pinned-tab/main/docs/videos/showcase-2.mp4"
+      <video src="https://github.com/user-attachments/assets/44090c3a-25f0-4a0f-bd8f-8555682b2735"
         autoplay loop muted playsinline width="100%"></video>
     </td>
   </tr>
