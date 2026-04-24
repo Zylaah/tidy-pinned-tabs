@@ -1,4 +1,4 @@
-/* Brief flash when reverting AI title (mirrors Zen pinned-tab motion feel) */
+/* Revert pulse (icon) */
 .tabbrowser-tab[data-zen-ai-pinned-rename="true"].zen-ai-pinned-revert-pulse .tab-icon-image {
   transition: opacity 0.15s ease, transform 0.2s ease;
 }
@@ -8,6 +8,100 @@
   transform: scale(0.92);
 }
 
-.tabbrowser-tab[data-zen-ai-pinned-rename="true"] .tab-label {
-  transition: opacity 0.12s ease;
+/* Slight icon softening on hover — echoes zen-pinned-changed hover */
+.tabbrowser-tab[data-zen-ai-pinned-rename="true"]:hover .tab-icon-image {
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  opacity: 0.88;
+}
+
+/* Ensure sublabel is readable for AI-renamed pins (Zen rules still apply to [zen-show-sublabel]) */
+.tabbrowser-tab[data-zen-ai-pinned-rename="true"][zen-show-sublabel] .tab-label-container .zen-tab-sublabel {
+  opacity: 0.65;
+}
+
+/* --- Magical sparkle / wave on new AI title --- */
+@keyframes zen-ai-rename-sparkle-glow {
+  0% {
+    filter: brightness(1);
+    text-shadow: none;
+  }
+  18% {
+    filter: brightness(1.2);
+    text-shadow:
+      0 0 6px color-mix(in srgb, var(--tab-selected-textcolor, currentColor) 35%, #f6d365),
+      0 0 14px color-mix(in srgb, #93c5fd 55%, transparent);
+  }
+  40% {
+    filter: brightness(1.12);
+    text-shadow:
+      0 0 10px color-mix(in srgb, #c4b5fd 70%, transparent),
+      0 0 18px color-mix(in srgb, #fde047 45%, transparent);
+  }
+  65% {
+    filter: brightness(1.18);
+    text-shadow:
+      0 0 8px color-mix(in srgb, #7dd3fc 60%, transparent),
+      0 0 12px color-mix(in srgb, #fbcfe8 50%, transparent);
+  }
+  100% {
+    filter: brightness(1);
+    text-shadow: none;
+  }
+}
+
+@keyframes zen-ai-rename-sparkle-wave {
+  0% {
+    opacity: 0;
+    transform: translateX(-18%) skewX(-6deg);
+  }
+  12% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(118%) skewX(-6deg);
+  }
+}
+
+.tabbrowser-tab.zen-ai-rename-sparkle .tab-label-container {
+  position: relative;
+  overflow: visible;
+}
+
+.tabbrowser-tab.zen-ai-rename-sparkle .tab-label-container::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 42%;
+  pointer-events: none;
+  border-radius: 4px;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    color-mix(in srgb, #fff 55%, transparent) 38%,
+    color-mix(in srgb, #fde68a 75%, transparent) 50%,
+    color-mix(in srgb, #a5b4fc 70%, transparent) 62%,
+    transparent 100%
+  );
+  mix-blend-mode: overlay;
+  filter: blur(0.5px);
+  animation: zen-ai-rename-sparkle-wave 1.05s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.tabbrowser-tab.zen-ai-rename-sparkle .tab-label {
+  animation: zen-ai-rename-sparkle-glow 1.15s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabbrowser-tab.zen-ai-rename-sparkle .tab-label,
+  .tabbrowser-tab.zen-ai-rename-sparkle .tab-label-container::after {
+    animation: none !important;
+  }
+
+  .tabbrowser-tab.zen-ai-rename-sparkle .tab-label {
+    filter: brightness(1.08);
+    transition: filter 0.3s ease;
+  }
 }

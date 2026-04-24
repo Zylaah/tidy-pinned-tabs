@@ -11,6 +11,7 @@
 
   const DATA_ATTR = "data-zen-ai-pinned-rename";
   const REVERT_PULSE_CLASS = "zen-ai-pinned-revert-pulse";
+  const SPARKLE_CLASS = "zen-ai-rename-sparkle";
 
   /**
    * @param {KeyboardEvent|MouseEvent} e
@@ -21,6 +22,51 @@
     if (m === "alt") return e.altKey;
     if (m === "meta") return e.metaKey;
     return e.shiftKey;
+  }
+
+  /**
+   * @param {(k: string) => string} getPref
+   * @param {string} REVERT_MODIFIER_PREF
+   */
+  function getRevertModifierDisplayName(getPref, REVERT_MODIFIER_PREF) {
+    const m = getPref(REVERT_MODIFIER_PREF, "shift").toLowerCase();
+    if (m === "alt") return "Alt";
+    if (m === "meta") {
+      return typeof navigator !== "undefined" && navigator.platform?.includes("Mac")
+        ? "⌘"
+        : "Meta";
+    }
+    return "Shift";
+  }
+
+  /**
+   * @param {Element} tab
+   * @param {string} text
+   */
+  function setSublabelPlainText(tab, text) {
+    const sub = tab.querySelector(".zen-tab-sublabel");
+    if (!sub) return;
+    sub.textContent = text;
+    sub.removeAttribute("data-l10n-id");
+  }
+
+  /**
+   * @param {Element} tab
+   * @param {string} primary
+   * @param {string} secondary
+   * @param {boolean} modifierHeld
+   */
+  function applyAiRenameSublabel(tab, primary, secondary, modifierHeld) {
+    const sub = tab.querySelector(".zen-tab-sublabel");
+    if (!sub) return;
+    const text = modifierHeld ? secondary : primary;
+    try {
+      if (typeof document.l10n?.setArgs === "function") {
+        document.l10n.setArgs(sub, { tabSubtitle: text });
+        return;
+      }
+    } catch (_) {}
+    setSublabelPlainText(tab, text);
   }
 
   /**
@@ -48,6 +94,78 @@
     const tabState = new WeakMap();
     /** @type {Map<import("chrome").BrowserTab, ReturnType<typeof setTimeout>>} */
     const pendingPinTimers = new Map();
+
+    /** @type {import("chrome").BrowserTab | null} */
+    let hoveredAiRenameTab = null;
+
+    /** @param {Event} e */
+    function onGlobalKeyForSublabel(e) {
+      const tab = hoveredAiRenameTab;
+      if (!tab?.hasAttribute?.(DATA_ATTR)) return;
+      tab._zenAiRenameRefreshSublabel?.(e);
+    }
+
+    function bindAiRenameHover(tab) {
+      if (tab._zenAiRenameHoverBound) return;
+      tab._zenAiRenameHoverBound = true;
+
+      const lineRevert = "Revert rename";
+      const lineRestore = "Restore original title";
+
+      const refresh = (e) => {
+        const ev = e || { shiftKey: false, altKey: false, metaKey: false };
+        const held = modifierActive(ev, getPref(REVERT_MODIFIER_PREF, "shift"));
+        const key = getRevertModifierDisplayName(getPref, REVERT_MODIFIER_PREF);
+        const primary = `${key}+click icon — ${lineRevert}`;
+        const secondary = `${lineRestore} (${key}+click)`;
+        applyAiRenameSublabel(tab, primary, secondary, held);
+      };
+
+      tab._zenAiRenameRefreshSublabel = refresh;
+
+      tab._zenAiRenameMouseEnter = () => {
+        hoveredAiRenameTab = tab;
+        tab.setAttribute("zen-show-sublabel", "true");
+        refresh({ shiftKey: false, altKey: false, metaKey: false });
+        win.addEventListener("keydown", onGlobalKeyForSublabel, true);
+        win.addEventListener("keyup", onGlobalKeyForSublabel, true);
+      };
+      tab._zenAiRenameMouseLeave = () => {
+        if (hoveredAiRenameTab === tab) hoveredAiRenameTab = null;
+        tab.removeAttribute("zen-show-sublabel");
+        win.removeEventListener("keydown", onGlobalKeyForSublabel, true);
+        win.removeEventListener("keyup", onGlobalKeyForSublabel, true);
+      };
+      tab._zenAiRenameMouseMove = (e) => refresh(e);
+
+      tab.addEventListener("mouseenter", tab._zenAiRenameMouseEnter);
+      tab.addEventListener("mouseleave", tab._zenAiRenameMouseLeave);
+      tab.addEventListener("mousemove", tab._zenAiRenameMouseMove);
+    }
+
+    function unbindAiRenameHover(tab) {
+      if (!tab._zenAiRenameHoverBound) return;
+      tab._zenAiRenameHoverBound = false;
+      if (hoveredAiRenameTab === tab) hoveredAiRenameTab = null;
+      tab.removeAttribute("zen-show-sublabel");
+      win.removeEventListener("keydown", onGlobalKeyForSublabel, true);
+      win.removeEventListener("keyup", onGlobalKeyForSublabel, true);
+      tab.removeEventListener("mouseenter", tab._zenAiRenameMouseEnter);
+      tab.removeEventListener("mouseleave", tab._zenAiRenameMouseLeave);
+      tab.removeEventListener("mousemove", tab._zenAiRenameMouseMove);
+      delete tab._zenAiRenameMouseEnter;
+      delete tab._zenAiRenameMouseLeave;
+      delete tab._zenAiRenameMouseMove;
+      delete tab._zenAiRenameRefreshSublabel;
+    }
+
+    function playRenameSparkle(tab) {
+      tab.classList.remove(SPARKLE_CLASS);
+      win.requestAnimationFrame(() => {
+        tab.classList.add(SPARKLE_CLASS);
+        win.setTimeout(() => tab.classList.remove(SPARKLE_CLASS), 1300);
+      });
+    }
 
     function debugLog(...args) {
       createDebugLog(getPref(DEBUG_PREF, false))(...args);
@@ -140,6 +258,8 @@
 
       applyTabLabel(tab, shortLabel);
       tab.setAttribute(DATA_ATTR, "true");
+      bindAiRenameHover(tab);
+      playRenameSparkle(tab);
       debugLog("Renamed pinned tab:", shortLabel, tab);
     }
 
@@ -176,6 +296,7 @@
       const st = tabState.get(tab);
       st?.abort?.abort();
       tabState.delete(tab);
+      unbindAiRenameHover(tab);
       tab.removeAttribute(DATA_ATTR);
     }
 
@@ -203,6 +324,7 @@
 
       tab.classList.add(REVERT_PULSE_CLASS);
       win.requestAnimationFrame(() => {
+        unbindAiRenameHover(tab);
         applyTabLabel(tab, state.originalLabel, { revert: true });
         tab.removeAttribute(DATA_ATTR);
         tabState.delete(tab);
