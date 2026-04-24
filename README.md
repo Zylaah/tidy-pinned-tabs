@@ -1,4 +1,4 @@
-<h1 align="center">Rename Pinned Tab (AI)</h1>
+<h1 align="center">Tidy Pinned Tabs</h1>
 
 <div align="center">
   <a href="https://zen-browser.app/">
