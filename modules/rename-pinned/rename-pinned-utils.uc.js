@@ -39,7 +39,7 @@ Return a response using JSON, according to this schema:
 }
 \`\`\`
 
-Write responses (but not JSON keys) in English.`;
+Language: Detect the primary language of the tab title you receive in the user message. Write both \`filtered\` and \`rewritten\` string values in that same language (natural phrasing, not literal word-for-word translation of these instructions). If the title mixes languages, use the dominant one. Keep established proper nouns, brands, and product names as they usually appear in that language or as in the title. JSON property names stay \`filtered\` and \`rewritten\`.`;
 
   const _prefBranch = (() => {
     try {

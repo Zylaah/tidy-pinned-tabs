@@ -12,6 +12,8 @@
   const DATA_ATTR = "data-zen-ai-pinned-rename";
   const REVERT_PULSE_CLASS = "zen-ai-pinned-revert-pulse";
   const SPARKLE_CLASS = "zen-ai-rename-sparkle";
+  /** After this, the short title is final: no revert UI or modifier+click undo. */
+  const AI_RENAME_CONFIRM_MS = 5000;
 
   /**
    * @param {KeyboardEvent|MouseEvent} e
@@ -94,9 +96,39 @@
     const tabState = new WeakMap();
     /** @type {Map<import("chrome").BrowserTab, ReturnType<typeof setTimeout>>} */
     const pendingPinTimers = new Map();
+    /** @type {Map<import("chrome").BrowserTab, ReturnType<typeof setTimeout>>} */
+    const confirmAiRenameTimers = new Map();
 
     /** @type {import("chrome").BrowserTab | null} */
     let hoveredAiRenameTab = null;
+
+    function clearConfirmAiRenameTimer(tab) {
+      const id = confirmAiRenameTimers.get(tab);
+      if (id != null) {
+        win.clearTimeout(id);
+        confirmAiRenameTimers.delete(tab);
+      }
+    }
+
+    /**
+     * User did not revert in time: keep `zenStaticLabel`, drop undo affordances.
+     * @param {import("chrome").BrowserTab} tab
+     */
+    function finalizeAiRename(tab) {
+      confirmAiRenameTimers.delete(tab);
+      if (!tab?.pinned || tab.closing) return;
+      if (!tab.hasAttribute(DATA_ATTR)) return;
+      unbindAiRenameHover(tab);
+      tab.removeAttribute(DATA_ATTR);
+      tabState.delete(tab);
+      debugLog("AI rename confirmed (undo window closed)", tab);
+    }
+
+    function scheduleAiRenameConfirmation(tab) {
+      clearConfirmAiRenameTimer(tab);
+      const id = win.setTimeout(() => finalizeAiRename(tab), AI_RENAME_CONFIRM_MS);
+      confirmAiRenameTimers.set(tab, id);
+    }
 
     /** @param {Event} e */
     function onGlobalKeyForSublabel(e) {
@@ -228,6 +260,8 @@
       if (!tab?.pinned || tab.closing) return;
       if (tab.hasAttribute("zen-essential")) return;
 
+      clearConfirmAiRenameTimer(tab);
+
       const existing = tabState.get(tab);
       existing?.abort?.abort();
 
@@ -260,6 +294,7 @@
       tab.setAttribute(DATA_ATTR, "true");
       bindAiRenameHover(tab);
       playRenameSparkle(tab);
+      scheduleAiRenameConfirmation(tab);
       debugLog("Renamed pinned tab:", shortLabel, tab);
     }
 
@@ -293,6 +328,7 @@
       const p = pendingPinTimers.get(tab);
       if (p) clearTimeout(p);
       pendingPinTimers.delete(tab);
+      clearConfirmAiRenameTimer(tab);
       const st = tabState.get(tab);
       st?.abort?.abort();
       tabState.delete(tab);
@@ -321,6 +357,8 @@
 
       event.stopPropagation();
       event.preventDefault();
+
+      clearConfirmAiRenameTimer(tab);
 
       tab.classList.add(REVERT_PULSE_CLASS);
       win.requestAnimationFrame(() => {
