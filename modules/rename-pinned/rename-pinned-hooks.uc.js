@@ -15,9 +15,8 @@
   /** After this, the short title is final: no revert UI or modifier+click undo. */
   const AI_RENAME_CONFIRM_MS = 5000;
 
-  /** SessionStore custom tab key — survives restart so we don’t re-run AI on restored pins. */
-  const SESSION_PIN_AI_KEY = "zen.rename_pinned_tab.pin_ai";
-  const PIN_AI_STATE = Object.freeze({ AI: "ai", REVERTED: "reverted" });
+  /** Marks tabs that should never auto-rename (already-pinned at startup, or user reverted). */
+  const SKIP_ATTR = "data-zen-ai-pinned-skip";
 
   /**
    * @param {KeyboardEvent|MouseEvent} e
@@ -289,63 +288,6 @@
       createDebugLog(getPref(DEBUG_PREF, false))(...args);
     }
 
-    /** @type {Promise<object | null> | null} */
-    let sessionStoreLoadPromise = null;
-
-    /**
-     * @returns {Promise<object | null>}
-     */
-    function loadSessionStore() {
-      if (!sessionStoreLoadPromise) {
-        sessionStoreLoadPromise = ChromeUtils.importESModule(
-          "resource:///modules/sessionstore/SessionStore.sys.mjs"
-        )
-          .then((ns) => ns.SessionStore ?? ns.default ?? null)
-          .catch((e) => {
-            console.warn("[Rename Pinned Tab] SessionStore load failed:", e);
-            return null;
-          });
-      }
-      return sessionStoreLoadPromise;
-    }
-
-    /**
-     * @param {object} tab
-     * @param {object | null} ss
-     */
-    function getPersistedPinAiState(tab, ss) {
-      if (!ss?.getCustomTabValue) return "";
-      try {
-        const v = ss.getCustomTabValue(tab, SESSION_PIN_AI_KEY);
-        return typeof v === "string" ? v : "";
-      } catch {
-        return "";
-      }
-    }
-
-    /**
-     * @param {object} tab
-     * @param {string | null} value PIN_AI_STATE or null to clear
-     */
-    function setPersistedPinAiState(tab, value) {
-      void loadSessionStore().then((ss) => {
-        if (!ss) return;
-        try {
-          if (value == null || value === "") {
-            if (typeof ss.deleteCustomTabValue === "function") {
-              ss.deleteCustomTabValue(tab, SESSION_PIN_AI_KEY);
-            } else {
-              ss.setCustomTabValue(tab, SESSION_PIN_AI_KEY, "");
-            }
-          } else {
-            ss.setCustomTabValue(tab, SESSION_PIN_AI_KEY, value);
-          }
-        } catch (e) {
-          debugLog("SessionStore set failed:", e);
-        }
-      });
-    }
-
     function getBrowserTabTitle(tab) {
       try {
         const t = tab.linkedBrowser?.contentTitle;
@@ -402,14 +344,8 @@
       if (!getPref(ENABLED_PREF, true)) return;
       if (!tab?.pinned || tab.closing) return;
       if (tab.hasAttribute("zen-essential")) return;
-
-      const ss = await loadSessionStore();
-      const persisted = getPersistedPinAiState(tab, ss);
-      if (
-        persisted === PIN_AI_STATE.AI ||
-        persisted === PIN_AI_STATE.REVERTED
-      ) {
-        debugLog("Skip AI rename: already handled for this pin (session)", persisted, tab);
+      if (tab.hasAttribute(SKIP_ATTR)) {
+        debugLog("Skip AI rename: tab marked as already handled/pre-pinned", tab);
         return;
       }
 
@@ -444,7 +380,6 @@
       }
 
       applyTabLabel(tab, shortLabel);
-      setPersistedPinAiState(tab, PIN_AI_STATE.AI);
       tab.setAttribute(DATA_ATTR, "true");
       bindAiRenameHover(tab);
       playRenameSparkle(tab);
@@ -488,7 +423,8 @@
       tabState.delete(tab);
       unbindAiRenameHover(tab);
       tab.removeAttribute(DATA_ATTR);
-      setPersistedPinAiState(tab, null);
+      /* Fresh pin next time should be eligible for AI rename again. */
+      tab.removeAttribute(SKIP_ATTR);
     }
 
     /**
@@ -519,13 +455,34 @@
       win.requestAnimationFrame(() => {
         unbindAiRenameHover(tab);
         applyTabLabel(tab, state.originalLabel, { revert: true });
-        setPersistedPinAiState(tab, PIN_AI_STATE.REVERTED);
+        /* Reverted: don’t auto-rename again until user unpins and re-pins. */
+        tab.setAttribute(SKIP_ATTR, "true");
         tab.removeAttribute(DATA_ATTR);
         tabState.delete(tab);
         debugLog("Reverted title for tab", tab);
         win.setTimeout(() => tab.classList.remove(REVERT_PULSE_CLASS), 220);
       });
     }
+
+    /** Mark tab so TabPinned events on it are ignored (restore or already pinned). */
+    function markSkip(tab) {
+      if (tab && isBrowserTab(gBrowser, tab)) tab.setAttribute(SKIP_ATTR, "true");
+    }
+
+    /** Any pin that exists when the script starts is a restore, not a fresh pin. */
+    for (const tab of gBrowser.tabs || []) {
+      if (tab.pinned) markSkip(tab);
+    }
+
+    /**
+     * `SSTabRestoring` fires once per restored tab before its state is applied;
+     * mark any tab that will be pinned after restore so we don’t re-AI it.
+     */
+    win.addEventListener("SSTabRestoring", (ev) => {
+      const tab = ev.target;
+      if (!isBrowserTab(gBrowser, tab)) return;
+      if (tab.pinned) markSkip(tab);
+    }, true);
 
     win.addEventListener("TabPinned", (ev) => {
       const tab = ev.target;
