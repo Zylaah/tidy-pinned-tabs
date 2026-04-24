@@ -191,10 +191,15 @@
       delete tab._zenAiRenameRefreshSublabel;
     }
 
+    /** Hard cap keeps paint cost predictable on very wide sidebars. */
+    const SPARKLE_MAX = 34;
+    const SPARKLE_MIN = 16;
+    /** ~1 sparkle per 7px width; tune for density vs perf. */
+    const SPARKLE_WIDTH_DIVISOR = 7;
+
     /**
-     * Sprinkle animated sparkle particles over the tab label.
-     * Creates a short-lived layer of star-shaped spans with randomized
-     * positions, sizes, colors, and delays. Auto-cleans after the animation.
+     * Sprinkle sparkle particles over the tab label in a left→right wave.
+     * Uses one DocumentFragment append, no per-particle filters, capped count.
      * @param {Element} tab
      */
     function playRenameSparkle(tab) {
@@ -209,53 +214,76 @@
 
       const layer = document.createElement("div");
       layer.className = "zen-ai-rename-sparkle-layer";
-      container.appendChild(layer);
       tab._zenAiSparkleLayer = layer;
 
       const rect = container.getBoundingClientRect();
-      const width = Math.max(60, rect.width || 120);
-      const height = Math.max(14, rect.height || 18);
+      const width = Math.max(48, rect.width || 100);
 
       const PALETTE = [
-        "#fef3c7", // warm white
-        "#fde68a", // amber
-        "#fbcfe8", // pink
-        "#c4b5fd", // violet
-        "#a5f3fc", // cyan
+        "#fef3c7",
+        "#fde68a",
+        "#fbcfe8",
+        "#c4b5fd",
+        "#a5f3fc",
         "#ffffff",
       ];
 
-      const count = Math.min(16, Math.max(9, Math.round(width / 14)));
-      const totalMs = 1400;
+      const count = Math.min(
+        SPARKLE_MAX,
+        Math.max(SPARKLE_MIN, Math.round(width / SPARKLE_WIDTH_DIVISOR))
+      );
+
+      const WAVE_MS = 620;
+      let maxFinish = 0;
+      const frag = document.createDocumentFragment();
 
       for (let i = 0; i < count; i++) {
         const s = document.createElement("span");
         s.className = "zen-ai-sparkle";
-        const size = 3 + Math.random() * 6; // 3–9px
-        const xPct = (i / count) * 100 + (Math.random() * 8 - 4);
-        const yPct = Math.random() * 100;
-        const delay = Math.random() * 650; // staggered sprinkle
-        const life = 650 + Math.random() * 350;
+
+        const progress = count > 1 ? i / (count - 1) : 0.5;
+        /* Left → right placement with tiny jitter so it stays a wave, not a grid */
+        const xPct = 2 + progress * 96 + (Math.random() * 3 - 1.5);
+        /* Two loose rows so it feels fuller without doubling node count arbitrarily */
+        const row = i % 2;
+        const yPct =
+          row === 0
+            ? 28 + Math.random() * 22
+            : 48 + Math.random() * 24;
+
+        const delay =
+          Math.round(progress * WAVE_MS) + ((Math.random() * 70) | 0);
+        const life = 520 + ((Math.random() * 240) | 0);
+        maxFinish = Math.max(maxFinish, delay + life);
+
+        const size = 2.5 + Math.random() * 5;
         const rot = Math.round(Math.random() * 360);
-        const drift = Math.round(-6 + Math.random() * 12);
-        const color = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+        const driftY = Math.round(-5 + Math.random() * 10);
+        /* Slight rightward drift in keyframes (reading direction) */
+        const driftX = Math.round(4 + Math.random() * 10);
+        const color = PALETTE[(Math.random() * PALETTE.length) | 0];
 
         s.style.setProperty("--sparkle-size", `${size.toFixed(2)}px`);
         s.style.setProperty("--sparkle-x", `${xPct.toFixed(2)}%`);
         s.style.setProperty("--sparkle-y", `${yPct.toFixed(2)}%`);
-        s.style.setProperty("--sparkle-delay", `${Math.round(delay)}ms`);
-        s.style.setProperty("--sparkle-life", `${Math.round(life)}ms`);
+        s.style.setProperty("--sparkle-delay", `${delay}ms`);
+        s.style.setProperty("--sparkle-life", `${life}ms`);
         s.style.setProperty("--sparkle-rot", `${rot}deg`);
-        s.style.setProperty("--sparkle-drift", `${drift}px`);
+        s.style.setProperty("--sparkle-drift-y", `${driftY}px`);
+        s.style.setProperty("--sparkle-drift-x", `${driftX}px`);
         s.style.setProperty("--sparkle-color", color);
-        layer.appendChild(s);
+        frag.appendChild(s);
       }
 
+      layer.appendChild(frag);
+      container.appendChild(layer);
+
+      const cleanupMs = maxFinish + 100;
       win.setTimeout(() => {
         tab.classList.remove(SPARKLE_CLASS);
         if (layer.isConnected) layer.remove();
         if (tab._zenAiSparkleLayer === layer) delete tab._zenAiSparkleLayer;
-      }, totalMs);
+      }, cleanupMs);
     }
 
     function debugLog(...args) {
