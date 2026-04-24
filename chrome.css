@@ -71,7 +71,8 @@
   --sparkle-rot: 0deg;
   --sparkle-drift-y: 0px;
   --sparkle-drift-x: 8px;
-  --sparkle-color: #fff;
+  /* Zen workspace / theme accent (inherits from chrome) */
+  --sparkle-color: var(--zen-primary-color, AccentColor);
 
   position: absolute;
   left: var(--sparkle-x);
@@ -84,7 +85,7 @@
   border-radius: 1px;
   transform: translate3d(0, 0, 0) scale(0) rotate(var(--sparkle-rot));
   /* Cheaper than filter: drop-shadow on dozens of nodes */
-  box-shadow: 0 0 2px 0.5px color-mix(in srgb, var(--sparkle-color) 55%, transparent);
+  box-shadow: 0 0 2px 0.5px color-mix(in srgb, var(--sparkle-color) 65%, transparent);
   animation: zen-ai-sparkle-pop var(--sparkle-life) cubic-bezier(0.22, 1, 0.36, 1)
     var(--sparkle-delay) forwards;
   background:

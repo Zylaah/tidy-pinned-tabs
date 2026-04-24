@@ -99,8 +99,37 @@
     /** @type {Map<import("chrome").BrowserTab, ReturnType<typeof setTimeout>>} */
     const confirmAiRenameTimers = new Map();
 
-    /** @type {import("chrome").BrowserTab | null} */
-    let hoveredAiRenameTab = null;
+    /** Ref-count window key listeners shared by all tabs in the undo window */
+    let aiSublabelGlobalKeyRef = 0;
+
+    function onWindowKeyAiSublabel(e) {
+      const tabs = gBrowser?.tabs;
+      if (!tabs?.length) return;
+      for (let i = 0; i < tabs.length; i++) {
+        const t = tabs[i];
+        if (
+          t.hasAttribute(DATA_ATTR) &&
+          typeof t._zenAiRenameRefreshSublabel === "function"
+        ) {
+          t._zenAiRenameRefreshSublabel(e);
+        }
+      }
+    }
+
+    function attachAiSublabelGlobalKeys() {
+      if (aiSublabelGlobalKeyRef++ === 0) {
+        win.addEventListener("keydown", onWindowKeyAiSublabel, true);
+        win.addEventListener("keyup", onWindowKeyAiSublabel, true);
+      }
+    }
+
+    function detachAiSublabelGlobalKeys() {
+      if (--aiSublabelGlobalKeyRef <= 0) {
+        aiSublabelGlobalKeyRef = 0;
+        win.removeEventListener("keydown", onWindowKeyAiSublabel, true);
+        win.removeEventListener("keyup", onWindowKeyAiSublabel, true);
+      }
+    }
 
     function clearConfirmAiRenameTimer(tab) {
       const id = confirmAiRenameTimers.get(tab);
@@ -130,13 +159,6 @@
       confirmAiRenameTimers.set(tab, id);
     }
 
-    /** @param {Event} e */
-    function onGlobalKeyForSublabel(e) {
-      const tab = hoveredAiRenameTab;
-      if (!tab?.hasAttribute?.(DATA_ATTR)) return;
-      tab._zenAiRenameRefreshSublabel?.(e);
-    }
-
     function bindAiRenameHover(tab) {
       if (tab._zenAiRenameHoverBound) return;
       tab._zenAiRenameHoverBound = true;
@@ -154,40 +176,16 @@
       };
 
       tab._zenAiRenameRefreshSublabel = refresh;
-
-      tab._zenAiRenameMouseEnter = () => {
-        hoveredAiRenameTab = tab;
-        tab.setAttribute("zen-show-sublabel", "true");
-        refresh({ shiftKey: false, altKey: false, metaKey: false });
-        win.addEventListener("keydown", onGlobalKeyForSublabel, true);
-        win.addEventListener("keyup", onGlobalKeyForSublabel, true);
-      };
-      tab._zenAiRenameMouseLeave = () => {
-        if (hoveredAiRenameTab === tab) hoveredAiRenameTab = null;
-        tab.removeAttribute("zen-show-sublabel");
-        win.removeEventListener("keydown", onGlobalKeyForSublabel, true);
-        win.removeEventListener("keyup", onGlobalKeyForSublabel, true);
-      };
-      tab._zenAiRenameMouseMove = (e) => refresh(e);
-
-      tab.addEventListener("mouseenter", tab._zenAiRenameMouseEnter);
-      tab.addEventListener("mouseleave", tab._zenAiRenameMouseLeave);
-      tab.addEventListener("mousemove", tab._zenAiRenameMouseMove);
+      tab.setAttribute("zen-show-sublabel", "true");
+      refresh({ shiftKey: false, altKey: false, metaKey: false });
+      attachAiSublabelGlobalKeys();
     }
 
     function unbindAiRenameHover(tab) {
       if (!tab._zenAiRenameHoverBound) return;
       tab._zenAiRenameHoverBound = false;
-      if (hoveredAiRenameTab === tab) hoveredAiRenameTab = null;
       tab.removeAttribute("zen-show-sublabel");
-      win.removeEventListener("keydown", onGlobalKeyForSublabel, true);
-      win.removeEventListener("keyup", onGlobalKeyForSublabel, true);
-      tab.removeEventListener("mouseenter", tab._zenAiRenameMouseEnter);
-      tab.removeEventListener("mouseleave", tab._zenAiRenameMouseLeave);
-      tab.removeEventListener("mousemove", tab._zenAiRenameMouseMove);
-      delete tab._zenAiRenameMouseEnter;
-      delete tab._zenAiRenameMouseLeave;
-      delete tab._zenAiRenameMouseMove;
+      detachAiSublabelGlobalKeys();
       delete tab._zenAiRenameRefreshSublabel;
     }
 
@@ -218,15 +216,6 @@
 
       const rect = container.getBoundingClientRect();
       const width = Math.max(48, rect.width || 100);
-
-      const PALETTE = [
-        "#fef3c7",
-        "#fde68a",
-        "#fbcfe8",
-        "#c4b5fd",
-        "#a5f3fc",
-        "#ffffff",
-      ];
 
       const count = Math.min(
         SPARKLE_MAX,
@@ -261,7 +250,6 @@
         const driftY = Math.round(-5 + Math.random() * 10);
         /* Slight rightward drift in keyframes (reading direction) */
         const driftX = Math.round(4 + Math.random() * 10);
-        const color = PALETTE[(Math.random() * PALETTE.length) | 0];
 
         s.style.setProperty("--sparkle-size", `${size.toFixed(2)}px`);
         s.style.setProperty("--sparkle-x", `${xPct.toFixed(2)}%`);
@@ -271,7 +259,6 @@
         s.style.setProperty("--sparkle-rot", `${rot}deg`);
         s.style.setProperty("--sparkle-drift-y", `${driftY}px`);
         s.style.setProperty("--sparkle-drift-x", `${driftX}px`);
-        s.style.setProperty("--sparkle-color", color);
         frag.appendChild(s);
       }
 
