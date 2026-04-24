@@ -1,0 +1,13 @@
+/* Brief flash when reverting AI title (mirrors Zen pinned-tab motion feel) */
+.tabbrowser-tab[data-zen-ai-pinned-rename="true"].zen-ai-pinned-revert-pulse .tab-icon-image {
+  transition: opacity 0.15s ease, transform 0.2s ease;
+}
+
+.tabbrowser-tab.zen-ai-pinned-revert-pulse .tab-icon-image {
+  opacity: 0.35;
+  transform: scale(0.92);
+}
+
+.tabbrowser-tab[data-zen-ai-pinned-rename="true"] .tab-label {
+  transition: opacity 0.12s ease;
+}

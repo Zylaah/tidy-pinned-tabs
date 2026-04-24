@@ -1,0 +1,36 @@
+[
+  {
+    "property": "extensions.zen.rename_pinned_tab.mistral_api_key",
+    "label": "Mistral API key (same as other Zen AI mods is fine)",
+    "type": "string",
+    "placeholder": "Paste API key"
+  },
+  {
+    "property": "extensions.zen.rename_pinned_tab.enabled",
+    "type": "checkbox",
+    "label": "Enable AI rename when a tab is pinned",
+    "defaultValue": true
+  },
+  {
+    "property": "extensions.zen.rename_pinned_tab.debug",
+    "type": "checkbox",
+    "label": "Log debug messages to the browser console",
+    "defaultValue": false
+  },
+  {
+    "property": "extensions.zen.rename_pinned_tab.mistral_model",
+    "type": "string",
+    "label": "Mistral model",
+    "defaultValue": "mistral-small-latest"
+  },
+  {
+    "type": "separator",
+    "label": "Revert"
+  },
+  {
+    "property": "extensions.zen.rename_pinned_tab.revert_modifier",
+    "type": "string",
+    "label": "Revert shortcut: shift | alt | meta (Shift+click / Alt+click / Cmd+click on tab icon)",
+    "defaultValue": "shift"
+  }
+]

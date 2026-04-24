@@ -1,0 +1,36 @@
+{
+  "id": "zen-rename-pinned-tab",
+  "name": "Rename Pinned Tab (AI)",
+  "description": "Shorten pinned tab titles with Mistral AI; Shift+click the tab icon to revert.",
+  "homepage": "https://github.com/YOUR_USERNAME/rename-pinned-tab",
+  "readme": "https://raw.githubusercontent.com/YOUR_USERNAME/rename-pinned-tab/main/README.md",
+  "style": {
+    "chrome": "chrome.css"
+  },
+  "scripts": {
+    "modules/rename-pinned/rename-pinned-utils.uc.js": {
+      "include": ["chrome://browser/content/browser.xhtml"],
+      "loadOrder": 1
+    },
+    "modules/rename-pinned/rename-pinned-ai.uc.js": {
+      "include": ["chrome://browser/content/browser.xhtml"],
+      "loadOrder": 2
+    },
+    "modules/rename-pinned/rename-pinned-hooks.uc.js": {
+      "include": ["chrome://browser/content/browser.xhtml"],
+      "loadOrder": 3
+    },
+    "rename-pinned-tabs.uc.js": {
+      "include": ["chrome://browser/content/browser.xhtml"],
+      "loadOrder": 4
+    }
+  },
+  "preferences": "preferences.json",
+  "author": "",
+  "version": "0.1.0",
+  "tags": ["fx-autoconfig", "zen", "tabs", "ai"],
+  "createdAt": "2026-04-24",
+  "updatedAt": "2026-04-24",
+  "ai": "yes",
+  "fork": ["zen"]
+}
