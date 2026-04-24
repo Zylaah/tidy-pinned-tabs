@@ -12,6 +12,50 @@
   let _lastRequestAt = 0;
   const MIN_INTERVAL_MS = 800;
 
+  const RETRYABLE_HTTP = new Set([429, 502, 503]);
+  const CHAT_MAX_ATTEMPTS = 4;
+  const CHAT_RETRY_BASE_MS = 750;
+
+  /**
+   * @param {number} ms
+   * @param {AbortSignal} [signal]
+   * @returns {Promise<void>}
+   */
+  function delay(ms, signal) {
+    return new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(new DOMException("Aborted", "AbortError"));
+        return;
+      }
+      const id = setTimeout(() => {
+        if (signal) signal.removeEventListener("abort", onAbort);
+        resolve();
+      }, ms);
+      function onAbort() {
+        clearTimeout(id);
+        reject(new DOMException("Aborted", "AbortError"));
+      }
+      if (signal) signal.addEventListener("abort", onAbort, { once: true });
+    });
+  }
+
+  /**
+   * @param {number} status
+   * @param {string} body
+   * @returns {string}
+   */
+  function formatChatHttpError(status, body) {
+    let msg = `HTTP ${status}: ${body}`;
+    if (
+      status === 503 &&
+      (/no healthy upstream/i.test(body) || /Provider returned error/i.test(body))
+    ) {
+      msg +=
+        " — Usually temporary: OpenRouter has no healthy backend for this model right now. Wait a minute, try again, or set a different OpenRouter model id.";
+    }
+    return msg;
+  }
+
   /**
    * @param {string} raw
    * @returns {{ filtered?: string, rewritten?: string } | null}
@@ -128,22 +172,31 @@
     const { apiKey, baseUrl, model, isOllama, isGemini } = p;
 
     if (isOllama) {
-      const response = await fetch(baseUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          messages,
-          stream: false,
-        }),
-        signal,
-      });
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errText}`);
+      let lastStatus = 0;
+      let lastBody = "";
+      for (let attempt = 1; attempt <= CHAT_MAX_ATTEMPTS; attempt++) {
+        const response = await fetch(baseUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            messages,
+            stream: false,
+          }),
+          signal,
+        });
+        if (response.ok) {
+          const json = await response.json();
+          return (json.message?.content || "").trim();
+        }
+        lastStatus = response.status;
+        lastBody = await response.text();
+        if (!RETRYABLE_HTTP.has(lastStatus) || attempt === CHAT_MAX_ATTEMPTS) {
+          throw new Error(formatChatHttpError(lastStatus, lastBody));
+        }
+        await delay(CHAT_RETRY_BASE_MS * 2 ** (attempt - 1), signal);
       }
-      const json = await response.json();
-      return (json.message?.content || "").trim();
+      throw new Error(formatChatHttpError(lastStatus, lastBody));
     }
 
     const base = baseUrl.replace(/\/+$/, "");
@@ -158,7 +211,7 @@
       ...(p.extraHeaders || {}),
     };
 
-    const response = await fetch(url, {
+    const init = {
       method: "POST",
       headers,
       body: JSON.stringify({
@@ -169,15 +222,24 @@
         max_tokens: 256,
       }),
       signal,
-    });
+    };
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errText}`);
+    let lastStatus = 0;
+    let lastBody = "";
+    for (let attempt = 1; attempt <= CHAT_MAX_ATTEMPTS; attempt++) {
+      const response = await fetch(url, init);
+      if (response.ok) {
+        const json = await response.json();
+        return (json.choices?.[0]?.message?.content || "").trim();
+      }
+      lastStatus = response.status;
+      lastBody = await response.text();
+      if (!RETRYABLE_HTTP.has(lastStatus) || attempt === CHAT_MAX_ATTEMPTS) {
+        throw new Error(formatChatHttpError(lastStatus, lastBody));
+      }
+      await delay(CHAT_RETRY_BASE_MS * 2 ** (attempt - 1), signal);
     }
-
-    const json = await response.json();
-    return (json.choices?.[0]?.message?.content || "").trim();
+    throw new Error(formatChatHttpError(lastStatus, lastBody));
   }
 
   /**
