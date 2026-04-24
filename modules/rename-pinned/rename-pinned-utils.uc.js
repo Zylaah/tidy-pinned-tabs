@@ -16,7 +16,21 @@
   const DEBUG_PREF = "extensions.zen.rename_pinned_tab.debug";
   const MODEL_PREF = "extensions.zen.rename_pinned_tab.mistral_model";
   const REVERT_MODIFIER_PREF = "extensions.zen.rename_pinned_tab.revert_modifier";
+
+  /** @typedef {"mistral"|"openai"|"ollama"|"gemini"} RenamePinnedProviderId */
+
+  const PROVIDER_PREF = "extensions.zen.rename_pinned_tab.provider";
+  const OPENAI_API_KEY_PREF = "extensions.zen.rename_pinned_tab.openai_api_key";
+  const OPENAI_MODEL_PREF = "extensions.zen.rename_pinned_tab.openai_model";
+  const GEMINI_API_KEY_PREF = "extensions.zen.rename_pinned_tab.gemini_api_key";
+  const GEMINI_MODEL_PREF = "extensions.zen.rename_pinned_tab.gemini_model";
+  const OLLAMA_BASE_URL_PREF = "extensions.zen.rename_pinned_tab.ollama_base_url";
+  const OLLAMA_MODEL_PREF = "extensions.zen.rename_pinned_tab.ollama_model";
+
   const MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions";
+  const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+  const GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/";
+  const DEFAULT_OLLAMA_CHAT_URL = "http://localhost:11434/api/chat";
 
   /** System prompt (from project ai prompt.txt — keep in sync). */
   const PINNED_TAB_SYSTEM_PROMPT = `You are an expert editor who shortens browser tab titles. You are not a cross-language translator for this task.
@@ -101,7 +115,17 @@ JSON keys must be \`filtered\` and \`rewritten\`. No markdown outside the JSON o
     DEBUG_PREF,
     MODEL_PREF,
     REVERT_MODIFIER_PREF,
+    PROVIDER_PREF,
+    OPENAI_API_KEY_PREF,
+    OPENAI_MODEL_PREF,
+    GEMINI_API_KEY_PREF,
+    GEMINI_MODEL_PREF,
+    OLLAMA_BASE_URL_PREF,
+    OLLAMA_MODEL_PREF,
     MISTRAL_URL,
+    OPENAI_URL,
+    GEMINI_OPENAI_BASE_URL,
+    DEFAULT_OLLAMA_CHAT_URL,
     PINNED_TAB_SYSTEM_PROMPT,
     getPref,
     createDebugLog,

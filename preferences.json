@@ -1,11 +1,5 @@
 [
   {
-    "property": "extensions.zen.rename_pinned_tab.mistral_api_key",
-    "label": "Mistral API key (same as other Zen AI mods is fine)",
-    "type": "string",
-    "placeholder": "Paste API key"
-  },
-  {
     "property": "extensions.zen.rename_pinned_tab.enabled",
     "type": "checkbox",
     "label": "Enable AI rename when a tab is pinned",
@@ -18,11 +12,63 @@
     "defaultValue": false
   },
   {
+    "property": "extensions.zen.rename_pinned_tab.provider",
+    "label": "LLM provider",
+    "type": "dropdown",
+    "defaultValue": "mistral",
+    "description": "Uses the same API shapes as URL Bar LLM: OpenAI-style chat/completions, native Ollama /api/chat, Gemini OpenAI-compatible endpoint.",
+    "options": [
+      {
+        "value": "mistral",
+        "label": "Mistral"
+      },
+      {
+        "value": "openai",
+        "label": "OpenAI"
+      },
+      {
+        "value": "ollama",
+        "label": "Ollama (local)"
+      },
+      {
+        "value": "gemini",
+        "label": "Google Gemini"
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "extensions.zen.rename_pinned_tab.enabled",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "separator",
+    "label": "Mistral"
+  },
+  {
+    "property": "extensions.zen.rename_pinned_tab.mistral_api_key",
+    "label": "Mistral API key",
+    "type": "string",
+    "placeholder": "Paste API key",
+    "description": "api.mistral.ai — same key as other Zen AI mods is fine.",
+    "conditions": [
+      {
+        "if": {
+          "property": "extensions.zen.rename_pinned_tab.provider",
+          "value": "mistral"
+        }
+      }
+    ]
+  },
+  {
     "property": "extensions.zen.rename_pinned_tab.mistral_model",
     "label": "Mistral model",
     "type": "dropdown",
     "defaultValue": "mistral-small-latest",
-    "description": "Model used for the chat completions API (tab title shortening).",
+    "description": "Chat completions model for title shortening.",
     "options": [
       {
         "value": "mistral-large-2512",
@@ -52,8 +98,172 @@
     "conditions": [
       {
         "if": {
-          "property": "extensions.zen.rename_pinned_tab.enabled",
-          "value": true
+          "property": "extensions.zen.rename_pinned_tab.provider",
+          "value": "mistral"
+        }
+      }
+    ]
+  },
+  {
+    "type": "separator",
+    "label": "OpenAI"
+  },
+  {
+    "property": "extensions.zen.rename_pinned_tab.openai_api_key",
+    "label": "OpenAI API key",
+    "type": "string",
+    "placeholder": "sk-…",
+    "conditions": [
+      {
+        "if": {
+          "property": "extensions.zen.rename_pinned_tab.provider",
+          "value": "openai"
+        }
+      }
+    ]
+  },
+  {
+    "property": "extensions.zen.rename_pinned_tab.openai_model",
+    "label": "OpenAI model",
+    "type": "dropdown",
+    "defaultValue": "gpt-5.3-chat-latest",
+    "options": [
+      {
+        "value": "gpt-5.3-chat-latest",
+        "label": "ChatGPT 5.3"
+      },
+      {
+        "value": "gpt-5.4",
+        "label": "GPT-5.4"
+      },
+      {
+        "value": "gpt-5.4-mini",
+        "label": "GPT-5.4 Mini"
+      },
+      {
+        "value": "gpt-5.4-nano",
+        "label": "GPT-5.4 Nano"
+      },
+      {
+        "value": "gpt-4o",
+        "label": "GPT-4o"
+      },
+      {
+        "value": "gpt-4-turbo",
+        "label": "GPT-4 Turbo"
+      },
+      {
+        "value": "gpt-4",
+        "label": "GPT-4"
+      },
+      {
+        "value": "gpt-3.5-turbo",
+        "label": "GPT-3.5 Turbo"
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "extensions.zen.rename_pinned_tab.provider",
+          "value": "openai"
+        }
+      }
+    ]
+  },
+  {
+    "type": "separator",
+    "label": "Gemini"
+  },
+  {
+    "property": "extensions.zen.rename_pinned_tab.gemini_api_key",
+    "label": "Gemini API key",
+    "type": "string",
+    "placeholder": "Google AI Studio API key",
+    "description": "From aistudio.google.com — OpenAI-compatible endpoint with key= query (same as URL Bar LLM).",
+    "conditions": [
+      {
+        "if": {
+          "property": "extensions.zen.rename_pinned_tab.provider",
+          "value": "gemini"
+        }
+      }
+    ]
+  },
+  {
+    "property": "extensions.zen.rename_pinned_tab.gemini_model",
+    "label": "Gemini model",
+    "type": "dropdown",
+    "defaultValue": "gemini-3.1-pro-preview",
+    "options": [
+      {
+        "value": "gemini-3.1-pro-preview",
+        "label": "Gemini 3.1 Pro"
+      },
+      {
+        "value": "gemini-3.1-flash-lite-preview",
+        "label": "Gemini 3.1 Flash Lite"
+      },
+      {
+        "value": "gemini-2.5-flash",
+        "label": "Gemini 2.5 Flash"
+      },
+      {
+        "value": "gemini-2.5-pro",
+        "label": "Gemini 2.5 Pro"
+      },
+      {
+        "value": "gemini-2.0-flash",
+        "label": "Gemini 2.0 Flash"
+      },
+      {
+        "value": "gemini-1.5-flash",
+        "label": "Gemini 1.5 Flash"
+      },
+      {
+        "value": "gemini-1.5-pro",
+        "label": "Gemini 1.5 Pro"
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "extensions.zen.rename_pinned_tab.provider",
+          "value": "gemini"
+        }
+      }
+    ]
+  },
+  {
+    "type": "separator",
+    "label": "Ollama"
+  },
+  {
+    "property": "extensions.zen.rename_pinned_tab.ollama_base_url",
+    "label": "Ollama chat URL",
+    "type": "string",
+    "placeholder": "http://localhost:11434/api/chat",
+    "defaultValue": "http://localhost:11434/api/chat",
+    "description": "Native Ollama /api/chat endpoint. No API key.",
+    "conditions": [
+      {
+        "if": {
+          "property": "extensions.zen.rename_pinned_tab.provider",
+          "value": "ollama"
+        }
+      }
+    ]
+  },
+  {
+    "property": "extensions.zen.rename_pinned_tab.ollama_model",
+    "label": "Ollama model name",
+    "type": "string",
+    "placeholder": "mistral",
+    "defaultValue": "mistral",
+    "conditions": [
+      {
+        "if": {
+          "property": "extensions.zen.rename_pinned_tab.provider",
+          "value": "ollama"
         }
       }
     ]
