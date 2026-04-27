@@ -11,6 +11,7 @@
 
   const DATA_ATTR = "data-zen-ai-pinned-rename";
   const REVERT_PULSE_CLASS = "zen-ai-pinned-revert-pulse";
+  const THINKING_CLASS = "zen-ai-pinned-thinking";
   const SPARKLE_CLASS = "zen-ai-rename-sparkle";
   /** After this, the short title is final: no revert UI or modifier+click undo. */
   const AI_RENAME_CONFIRM_MS = 5000;
@@ -354,7 +355,6 @@
       const existing = tabState.get(tab);
       existing?.abort?.abort();
 
-      const abort = new AbortController();
       const title = getBrowserTabTitle(tab);
       let url = "";
       try {
@@ -366,14 +366,28 @@
         return;
       }
 
+      /** Bumps so an older in-flight `runRenameForTab` does not clear "thinking" for a newer run. */
+      tab._zenAiRenameGen = (tab._zenAiRenameGen || 0) + 1;
+      const requestGen = tab._zenAiRenameGen;
+
+      const abort = new AbortController();
       tabState.set(tab, { originalLabel: title, abort });
+      tab.classList.add(THINKING_CLASS);
 
-      const shortLabel = await getRewrittenTitle({
-        title,
-        url,
-        signal: abort.signal,
-      });
+      let shortLabel;
+      try {
+        shortLabel = await getRewrittenTitle({
+          title,
+          url,
+          signal: abort.signal,
+        });
+      } finally {
+        if (requestGen === tab._zenAiRenameGen) {
+          tab.classList.remove(THINKING_CLASS);
+        }
+      }
 
+      if (requestGen !== tab._zenAiRenameGen) return;
       if (!shortLabel || abort.signal.aborted || !tab.pinned || tab.closing) {
         tabState.delete(tab);
         return;
@@ -433,6 +447,8 @@
       const st = tabState.get(tab);
       st?.abort?.abort();
       tabState.delete(tab);
+      tab._zenAiRenameGen = (tab._zenAiRenameGen || 0) + 1;
+      tab.classList.remove(THINKING_CLASS);
       unbindAiRenameHover(tab);
       tab.removeAttribute(DATA_ATTR);
       /* Fresh pin next time should be eligible for AI rename again. */

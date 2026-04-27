@@ -22,6 +22,26 @@
 }
 
 /* ==========================================================================
+   Thinking — gentle pulse on title while the LLM request is in flight
+   ========================================================================== */
+@keyframes zen-ai-label-thinking-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.tabbrowser-tab.zen-ai-pinned-thinking .tab-label {
+  /* Avoid fighting Zen’s own label transitions */
+  transition: none;
+  animation: zen-ai-label-thinking-pulse 1.1s ease-in-out infinite;
+  will-change: opacity;
+}
+
+/* ==========================================================================
    Rename sparkle — sprinkled over the tab label
    ========================================================================== */
 
@@ -165,6 +185,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .tabbrowser-tab.zen-ai-pinned-thinking .tab-label {
+    animation: none !important;
+    opacity: 0.82;
+    transition: opacity 0.25s ease;
+  }
+
   .tabbrowser-tab.zen-ai-rename-sparkle .tab-label {
     animation: none !important;
     clip-path: none !important;
