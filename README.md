@@ -51,5 +51,5 @@
 1. Install **Sine** if you don’t already have it  
    https://github.com/CosmoCreeper/Sine
 2. Open **Settings → Sine Mods** (or **Cosine**)
-3. Search for **Rename Pinned Tab (AI)** (or the listing that matches this repo on the marketplace)
-4. Install from the marketplace
+3. Enable installing JS from unofficial sources from Sine's settings.
+4. paste Zylaah/tidy-pinned-tabs and press install.
