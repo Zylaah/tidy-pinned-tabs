@@ -86,9 +86,36 @@
    * @param {object} tab
    */
   function isBrowserTab(gBrowser, tab) {
-    if (!tab) return false;
-    if (typeof gBrowser.isTab === "function") return gBrowser.isTab(tab);
-    return tab.localName === "tab";
+    if (!tab || tab.nodeType !== 1) return false;
+    const name = String(tab.localName || tab.tagName || "").toLowerCase();
+    if (name === "tab") return true;
+    if (typeof gBrowser?.isTab === "function") {
+      try {
+        return gBrowser.isTab(tab);
+      } catch (_) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * TabPinned is dispatched on the tab. Zen reparents pinned tabs into a
+   * workspace section, and the event is not `composed`, so `window` often
+   * never sees it. Walk the path and fall back to closest("tab").
+   * @param {Event} ev
+   */
+  function tabFromPinEvent(ev) {
+    const nodes = [];
+    if (ev?.target) nodes.push(ev.target);
+    if (typeof ev?.composedPath === "function") {
+      for (const node of ev.composedPath()) nodes.push(node);
+    }
+    for (const node of nodes) {
+      if (isBrowserTab(null, node)) return node;
+    }
+    const closest = ev?.target?.closest?.("tab");
+    return isBrowserTab(null, closest) ? closest : null;
   }
 
   function init(deps) {
@@ -664,42 +691,79 @@
     );
 
     /**
-     * Release the startup gate once session restore finishes.
-     * Listens to Services observer topics as the primary signal, with a
-     * timeout fallback in case they never fire (e.g. fresh profile).
+     * Release the startup gate once Zen has finished the same wait it uses
+     * itself: SessionStore.promiseAllWindowsRestored, then
+     * gZenStartup.promiseInitialized. Those promises are already settled when
+     * this script loads late, so `.then` runs on the next microtask instead of
+     * missing the one-shot observer topics and sitting on an 8s timeout
+     * (which was swallowing real pins and marking them skip).
      */
     (function waitForRestoreComplete() {
-      const TOPICS = ["sessionstore-windows-restored", "sessionstore-browser-state-restored"];
       let released = false;
       const release = (reason) => {
         if (released) return;
         released = true;
         startupSuppressPin = false;
-        for (const t of TOPICS) {
-          try {
-            Services.obs.removeObserver(obs, t);
-          } catch (_) {}
-        }
+        bindWorkspacePinTargets();
         debugLog(`Startup gate released: ${reason}`);
       };
-      const obs = { observe: (_s, topic) => release(topic) };
-      try {
-        for (const t of TOPICS) Services.obs.addObserver(obs, t);
-      } catch (e) {
-        debugLog("Observer registration failed:", e);
-      }
+
+      const zenReady =
+        win.gZenStartup?.promiseInitialized || Promise.resolve();
+      const sessionReady =
+        win.SessionStore?.promiseAllWindowsRestored || Promise.resolve();
+
+      Promise.all([sessionReady, zenReady])
+        .then(() => release("zen-ready"))
+        .catch((e) => {
+          debugLog("Startup wait failed:", e);
+          release("zen-ready-error");
+        });
+
       win.setTimeout(() => release("timeout"), 8000);
     })();
 
-    win.addEventListener("TabPinned", (ev) => {
-      const tab = ev.target;
-      if (isBrowserTab(gBrowser, tab)) onTabPinned(tab);
-    });
+    function onPinEvent(ev) {
+      if (ev._zenRenamePinnedHandled) return;
+      const tab = tabFromPinEvent(ev);
+      if (!isBrowserTab(gBrowser, tab)) {
+        debugLog("TabPinned ignored: target is not a tab", ev.target?.localName);
+        return;
+      }
+      ev._zenRenamePinnedHandled = true;
+      onTabPinned(tab);
+    }
 
-    win.addEventListener("TabUnpinned", (ev) => {
-      const tab = ev.target;
-      if (isBrowserTab(gBrowser, tab)) onTabUnpinned(tab);
-    });
+    function onUnpinEvent(ev) {
+      if (ev._zenRenameUnpinnedHandled) return;
+      const tab = tabFromPinEvent(ev);
+      if (!isBrowserTab(gBrowser, tab)) return;
+      ev._zenRenameUnpinnedHandled = true;
+      onTabUnpinned(tab);
+    }
+
+    /**
+     * Pinned tabs live in each workspace's pinned section, which is where Zen
+     * itself listens. Window listeners miss the event when it does not cross
+     * that subtree.
+     */
+    function bindWorkspacePinTargets() {
+      const sections = win.document.querySelectorAll(
+        ".zen-workspace-pinned-tabs-section"
+      );
+      for (const section of sections) {
+        if (section._zenAiPinBound) continue;
+        section._zenAiPinBound = true;
+        section.addEventListener("TabPinned", onPinEvent);
+        section.addEventListener("TabUnpinned", onUnpinEvent);
+      }
+    }
+
+    win.addEventListener("TabPinned", onPinEvent, true);
+    win.addEventListener("TabUnpinned", onUnpinEvent, true);
+    gBrowser.tabContainer?.addEventListener("TabPinned", onPinEvent, true);
+    gBrowser.tabContainer?.addEventListener("TabUnpinned", onUnpinEvent, true);
+    bindWorkspacePinTargets();
 
     win.addEventListener("click", onDocumentClickCapture, true);
 
