@@ -19,6 +19,37 @@
   .tab-label-container
   .zen-tab-sublabel {
   opacity: 0.65;
+  /* Stay one line under the title. Zen's label will wrap and compress into
+     the 10px slot on a narrow tab, which paints over the title. */
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  line-height: 10px;
+  /* The box is the full label width, so text that fits stays solid and only
+     the part that runs past the tab edge fades out. */
+  mask-image: linear-gradient(
+    to left,
+    transparent 0,
+    #000 var(--tab-label-mask-size, 1.5em)
+  );
+}
+
+.tabbrowser-tab[data-zen-ai-pinned-rename="true"][zen-show-sublabel]
+  .tab-label-container[labeldirection="rtl"]
+  .zen-tab-sublabel,
+.tabbrowser-tab[data-zen-ai-pinned-rename="true"][zen-show-sublabel]
+  .tab-label-container:not([labeldirection]):-moz-locale-dir(rtl)
+  .zen-tab-sublabel {
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--tab-label-mask-size, 1.5em)
+  );
 }
 
 /* ==========================================================================
